@@ -1,0 +1,34 @@
+{
+	"name": "langeland/bazinga",
+	"description": "Basic Symfony console application.",
+	"keywords": [
+		"symfony",
+		"framework",
+		"installer",
+		"php"
+	],
+	"license": "LGPL-3.0+",
+	"authors": [
+		{
+			"name": "Jon Klixbüll Langeland",
+			"homepage": "http://discworld.dk"
+		}
+	],
+	"autoload": {
+		"psr-4": {
+			"Langeland\\": "Libraries/Langeland/"
+		}
+	},
+	"bin": [
+		"application.php"
+	],
+	"config": {
+		"vendor-dir": "Libraries",
+		"bin-dir": "bin"
+	},
+	"require": {
+		"php": ">=5.4.0",
+		"symfony/console": "3.0.*@dev",
+		"symfony/process": "3.0.*@dev"
+	}
+}
