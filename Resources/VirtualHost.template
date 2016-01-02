@@ -1,0 +1,34 @@
+<VirtualHost *:80>
+	ServerName {installationName}.flab.dk
+
+	ServerAdmin webmaster@{installationName}.flab.dk
+	DocumentRoot {installationRoot}/htdocs
+
+	# Available loglevels: trace8, ..., trace1, debug, info, notice, warn,
+	# error, crit, alert, emerg.
+	# It is also possible to configure the loglevel for particular
+	# modules, e.g.
+	#LogLevel info ssl:warn
+
+	ErrorLog {installationRoot}/system/logs/error.log
+	CustomLog {installationRoot}/system/logs/access.log combined
+
+ # If the php file doesn't exist, disable the proxy handler.
+ # This will allow .htaccess rewrite rules to work and
+ # the client will see the default 404 page of Apache
+ #RewriteCond %{REQUEST_FILENAME} \.php$
+ #RewriteCond %{DOCUMENT_ROOT}/%{REQUEST_URI} !-f
+ #RewriteRule (.*) - [H=text/html]
+
+ ProxyPassMatch ^/(.*\.php(/.*)?)$ unix:{installationRoot}/system/sockets/php5-fpm-{installationName}.sock|fcgi://127.0.0.1:9000{installationRoot}/htdocs
+
+	<Directory "{installationRoot}/htdocs">
+		Order allow,deny
+		Allow from all
+		AllowOverride FileInfo All
+		# New directive needed in Apache 2.4.3:
+		Require all granted
+	</Directory>
+</VirtualHost>
+
+# vim: syntax=apache ts=4 sw=4 sts=4 sr noet
