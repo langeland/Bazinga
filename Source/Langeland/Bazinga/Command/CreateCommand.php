@@ -3,6 +3,7 @@
 namespace Langeland\Bazinga\Command;
 
 class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
+
 	protected $virtualHostConfiguration = array();
 
 	protected function configure() {
@@ -69,6 +70,21 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 		$this->create();
 	}
 
+	private function createDirectory($pathname, $mode = 0777, $user = NULL, $group = NULL) {
+
+		if (!mkdir($pathname, 0770, TRUE)) {
+			throw new \Exception('Failed to create folder: ' . $pathname);
+		}
+
+		if (!chown($pathname, $user)) {
+			throw new \Exception('Failed to set owner for folder: ' . $pathname);
+		}
+		if (!chgrp($pathname, $group)) {
+			throw new \Exception('Failed to set group for folder: ' . $pathname);
+		}
+
+	}
+
 	private function getSystemUsers() {
 		$process = new \Symfony\Component\Process\Process('cat /etc/passwd | cut -d: -f1');
 		$process->run();
@@ -111,28 +127,13 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 			die('Missing pseudoGroup dir');
 		}
 
-		if (!mkdir($virtualHostDirectory, 0777)) {
-			throw new \Exception('Failed to create folder: ' . $virtualHostDirectory);
-		}
-		if (!mkdir($virtualHostDirectory . '/system/', 0777, TRUE)) {
-			throw new \Exception('Failed to create folder: ' . $virtualHostDirectory . '/system/');
-		}
-		if (!mkdir($virtualHostDirectory . '/system/logs/', 0777, TRUE)) {
-			throw new \Exception('Failed to create folder: ' . $virtualHostDirectory . '/system/logs/');
-		}
-		if (!mkdir($virtualHostDirectory . '/system/conf/', 0777, TRUE)) {
-			throw new \Exception('Failed to create folder: ' . $virtualHostDirectory . '/system/conf/');
-		}
-		if (!mkdir($virtualHostDirectory . '/system/sessions/', 0777, TRUE)) {
-			throw new \Exception('Failed to create folder: ' . $virtualHostDirectory . '/system/sessions/');
-		}
-		if (!mkdir($virtualHostDirectory . '/system/sockets/', 0777, TRUE)) {
-			throw new \Exception('Failed to create folder: ' . $virtualHostDirectory . '/system/sockets/');
-		}
-		if (!mkdir($virtualHostDirectory . '/htdocs/', 0777, TRUE)) {
-			throw new \Exception('Failed to create folder: ' . $virtualHostDirectory . '/htdocs/');
-		}
-
+		$this->createDirectory($virtualHostDirectory, 0750, 'root', $this->virtualHostConfiguration['group']);
+		$this->createDirectory($virtualHostDirectory . '/system/', 0750, 'root', $this->virtualHostConfiguration['group']);
+		$this->createDirectory($virtualHostDirectory . '/system/logs/', 0750, 'root', $this->virtualHostConfiguration['group']);
+		$this->createDirectory($virtualHostDirectory . '/system/conf/', 0750, 'root', $this->virtualHostConfiguration['group']);
+		$this->createDirectory($virtualHostDirectory . '/system/sessions/', 0770, $this->virtualHostConfiguration['user'], $this->virtualHostConfiguration['group']);
+		$this->createDirectory($virtualHostDirectory . '/system/sockets/', 0750, 'root', $this->virtualHostConfiguration['group']);
+		$this->createDirectory($virtualHostDirectory . '/htdocs/', 0770, $this->virtualHostConfiguration['user'], $this->virtualHostConfiguration['group']);
 	}
 
 	private function taskCreateVirtualHostFile() {
