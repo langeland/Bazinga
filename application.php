@@ -1,6 +1,8 @@
 #!/usr/bin/env php
 <?php
 
+use Symfony\Component\Yaml\Yaml;
+
 if (PHP_VERSION_ID < 50400) {
 	file_put_contents('php://stderr', sprintf(
 		"Bazinga Installer requires PHP 5.4 version or higher and your system has\n" .
@@ -33,9 +35,9 @@ if (!isset($_SERVER['PATH']) && isset($_SERVER['Path'])) {
 	$_SERVER['PATH'] = $_SERVER['Path'];
 }
 
-$app = new Symfony\Component\Console\Application('Bazinga Installer', $appVersion);
-$app->add(new Langeland\Bazinga\Command\CreateCommand());
-$app->add(new Langeland\Bazinga\Command\DemoCommand());
+$config = Yaml::parse(file_get_contents(__DIR__ . '/Configuration/config.yml'));
 
+$app = new Symfony\Component\Console\Application('Bazinga Installer', $appVersion);
+$app->add(new Langeland\Bazinga\Command\CreateCommand($config));
 
 $app->run();
