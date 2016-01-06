@@ -7,7 +7,7 @@ group = {group}
 
 ; The address on which to accept FastCGI requests.
 ;   '/path/to/unix/socket' - to listen on a unix socket.
-listen = {installationRoot}/system/sockets/php5-fpm-{installationName}.sock
+listen = {fpmSocketPath}/php5-fpm-{installationName}.sock
 
 
 ; Set permissions for unix socket, if one is used. In Linux, read/write

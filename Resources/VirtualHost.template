@@ -20,7 +20,7 @@
  #RewriteCond %{DOCUMENT_ROOT}/%{REQUEST_URI} !-f
  #RewriteRule (.*) - [H=text/html]
 
- ProxyPassMatch ^/(.*\.php(/.*)?)$ unix:{installationRoot}/system/sockets/php5-fpm-{installationName}.sock|fcgi://127.0.0.1:9000{installationRoot}/htdocs
+ ProxyPassMatch ^/(.*\.php(/.*)?)$ unix:{fpmSocketPath}/php5-fpm-{installationName}.sock|fcgi://127.0.0.1:9000{installationRoot}/htdocs
 
 	<Directory "{installationRoot}/htdocs">
 		Order allow,deny

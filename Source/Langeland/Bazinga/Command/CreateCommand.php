@@ -57,7 +57,6 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 		$this->virtualHostConfiguration['login_user'] = $this->virtualHostConfiguration['name'] . '_login';
 		$this->virtualHostConfiguration['group'] = $this->virtualHostConfiguration['name'] . '_grp';
 
-
 		// Get the pseudo-group.
 		if (!empty($input->getOption('group'))) {
 			$this->virtualHostConfiguration['pseudoGroup'] = trim($input->getOption('group'));
@@ -70,12 +69,17 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 			$this->virtualHostConfiguration['pseudoGroup'] = $helper->ask($input, $output, $question);
 		}
 
+		$pseudoGroupDirectory = $this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'];
+		$virtualHostDirectory = $pseudoGroupDirectory . '/' . $this->virtualHostConfiguration['name'];
+		$this->virtualHostConfiguration['login_homedir'] = $virtualHostDirectory;
+		$this->virtualHostConfiguration['web_homedir'] = $virtualHostDirectory . '/htdocs/';
+
 		$this->create();
 	}
 
-	private function createDirectory($pathname, $mode = 0777, $user = NULL, $group = NULL) {
+	private function createDirectory($pathname, $mode, $user, $group) {
 
-		if (!mkdir($pathname, 0770, TRUE)) {
+		if (!mkdir($pathname, $mode, TRUE)) {
 			throw new \Exception('Failed to create folder: ' . $pathname);
 		}
 
@@ -111,12 +115,10 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 	}
 
 	private function create() {
+		$this->taskCreateSystemUserAndGroup();
 		$this->taskCreateDirectories();
 		$this->taskCreateFpmFile();
 		$this->taskCreateVirtualHostFile();
-
-		// Must be run after taskCreateDirectories().
-		$this->taskCreateSystemUserAndGroup();
 
 		$this->taskEnableSite();
 		$this->taskRestartApache();
@@ -127,20 +129,18 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 
 		$pseudoGroupDirectory = $this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'];
 		$virtualHostDirectory = $pseudoGroupDirectory . '/' . $this->virtualHostConfiguration['name'];
-		$this->virtualHostConfiguration['login_homedir'] = $virtualHostDirectory;
-		$this->virtualHostConfiguration['web_homedir'] = $virtualHostDirectory . '/htdocs/';
 
 		if (!is_dir($this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'])) {
 			die('Missing pseudoGroup dir');
 		}
 
-		$this->createDirectory($virtualHostDirectory, 0750, 'root', $this->virtualHostConfiguration['group']);
+		$this->createDirectory($virtualHostDirectory, 0755, 'root', $this->virtualHostConfiguration['group']);
 		$this->createDirectory($virtualHostDirectory . '/system/', 0750, 'root', $this->virtualHostConfiguration['group']);
 		$this->createDirectory($virtualHostDirectory . '/system/logs/', 0750, 'root', $this->virtualHostConfiguration['group']);
 		$this->createDirectory($virtualHostDirectory . '/system/conf/', 0750, 'root', $this->virtualHostConfiguration['group']);
-		$this->createDirectory($virtualHostDirectory . '/system/sessions/', 0770, $this->virtualHostConfiguration['user'], $this->virtualHostConfiguration['group']);
-		$this->createDirectory($virtualHostDirectory . '/system/sockets/', 0750, 'root', $this->virtualHostConfiguration['group']);
-		$this->createDirectory($virtualHostDirectory . '/htdocs/', 0770, $this->virtualHostConfiguration['user'], $this->virtualHostConfiguration['group']);
+		$this->createDirectory($virtualHostDirectory . '/system/sessions/', 0770, $this->virtualHostConfiguration['web_user'], $this->virtualHostConfiguration['group']);
+		//$this->createDirectory($virtualHostDirectory . '/system/sockets/', 0750, 'root', $this->virtualHostConfiguration['group']);
+		$this->createDirectory($virtualHostDirectory . '/htdocs/', 0775, $this->virtualHostConfiguration['web_user'], $this->virtualHostConfiguration['group']);
 	}
 
 	private function taskCreateVirtualHostFile() {
@@ -148,6 +148,7 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 		$template = new \Langeland\Bazinga\Service\TemplateService(__DIR__ . '/../../../../Resources/VirtualHost.template');
 		$template->setVar('installationName', $this->virtualHostConfiguration['name']);
 		$template->setVar('installationRoot', $this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name']);
+		$template->setVar('fpmSocketPath', $this->configuration['directories']['fpm_sockets']);
 		$fileContent = $template->render();
 
 		$file = $this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name'] . '/system/conf/virtualhost.conf';
@@ -164,6 +165,7 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 		$template->setVar('installationRoot', $this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name']);
 		$template->setVar('user', $this->virtualHostConfiguration['web_user']);
 		$template->setVar('group', $this->virtualHostConfiguration['group']);
+		$template->setVar('fpmSocketPath', $this->configuration['directories']['fpm_sockets']);
 		$fileContent = $template->render();
 
 		$file = $this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name'] . '/system/conf/fpm.pool';
@@ -195,7 +197,7 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 		$web_homedir_esc = escapeshellarg($this->virtualHostConfiguration['web_homedir']);
 		$web_user_esc = escapeshellarg($this->virtualHostConfiguration['web_user']);
 
-		$process = new \Symfony\Component\Process\Process('adduser --force-badname --home ' . $web_homedir_esc . ' --shell /bin/false --disabled-login --gecos \'\' --ingroup ' . $group_esc . ' ' . $web_user_esc);
+		$process = new \Symfony\Component\Process\Process('adduser --force-badname --no-create-home --home ' . $web_homedir_esc . ' --shell /bin/false --disabled-login --gecos \'\' --ingroup ' . $group_esc . ' ' . $web_user_esc);
 		try {
 			$process->mustRun();
 		} catch (ProcessFailedException $e) {
@@ -206,7 +208,7 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 		// Create the login-user.
 		$login_homedir_esc = escapeshellarg($this->virtualHostConfiguration['login_homedir']);
 		$login_user_esc = escapeshellarg($this->virtualHostConfiguration['login_user']);
-		$process = new \Symfony\Component\Process\Process('adduser --force-badname --home ' . $login_homedir_esc . ' --disabled-login --gecos \'\' --ingroup ' . $group_esc . ' ' . $login_user_esc);
+		$process = new \Symfony\Component\Process\Process('adduser --force-badname --no-create-home --home ' . $login_homedir_esc . ' --disabled-login --gecos \'\' --ingroup ' . $group_esc . ' ' . $login_user_esc);
 		try {
 			$process->mustRun();
 		} catch (ProcessFailedException $e) {
