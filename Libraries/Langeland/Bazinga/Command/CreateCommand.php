@@ -5,10 +5,10 @@ namespace Langeland\Bazinga\Command;
 class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 
 	protected $configuration = array(
-		'sitesAvailable.directory' => '/Users/langeland/temp/hoostroot/sites-available',
-		'sitesEnabled.directory' => '/Users/langeland/temp/hoostroot/sites-enabled',
-		'fpmPool.directory' => '/Users/langeland/temp/hoostroot/pool.d',
-		'hostroot.directory' => '/Users/langeland/temp/hoostroot/sites'
+		'sitesAvailable.directory' => '/home/hostroot/configuration/virtualhost.d',
+		'sitesEnabled.directory' => '/etc/apache2/sites-enabled',
+		'fpmPool.directory' => '/home/hostroot/configuration/pool.d',
+		'hostroot.directory' => '/home/hostroot/sites'
 	);
 
 	protected $virtualHostConfiguration = array();
@@ -26,6 +26,11 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 	protected function execute(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output) {
 		$this->input = $input;
 		$this->output = $output;
+
+		if (posix_getuid() > 0) {
+			$output->writeln('You must run this as root.. Your id is: ' . posix_getuid());
+			die();
+		}
 
 		$helper = $this->getHelper('question');
 
@@ -142,6 +147,9 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 		if (!mkdir($virtualHostDirectory . '/system/logs/', 0777, TRUE)) {
 			throw new \Exception('Failed to create folder: ' . $virtualHostDirectory . '/system/logs/');
 		}
+		if (!mkdir($virtualHostDirectory . '/system/conf/', 0777, TRUE)) {
+			throw new \Exception('Failed to create folder: ' . $virtualHostDirectory . '/system/conf/');
+		}
 		if (!mkdir($virtualHostDirectory . '/system/sessions/', 0777, TRUE)) {
 			throw new \Exception('Failed to create folder: ' . $virtualHostDirectory . '/system/sessions/');
 		}
@@ -154,69 +162,50 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 
 	}
 
-	private function taskCreateFpmFile() {
-		$this->output->writeln('Creating FPM File');
-		$template = new \Langeland\Bazinga\Service\TemplateService(__DIR__ . '/../../../../Resources/fpm.template');
-		$template->setVar('installationName', $this->virtualHostConfiguration['name']);
-		$template->setVar('installationRoot', $this->configuration['hostroot.directory'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name']);
-
-		$template->setVar('user', $this->virtualHostConfiguration['user']);
-		$template->setVar('group', $this->virtualHostConfiguration['group']);
-
-
-		$fileContent = $template->render();
-		$file = tempnam('/tmp', 'bazinga');
-		file_put_contents($file, $fileContent);
-
-		$command = vsprintf(
-			'sudo mv %s %s',
-			array(
-				$file,
-				$this->configuration['fpmPool.directory'] . '/' . $this->virtualHostConfiguration['name'] . '.pool',
-			)
-		);
-
-		exec($command);
-
-	}
-
 	private function taskCreateVirtualHostFile() {
 		$this->output->writeln('Creating VirtualHost File');
 		$template = new \Langeland\Bazinga\Service\TemplateService(__DIR__ . '/../../../../Resources/VirtualHost.template');
 		$template->setVar('installationName', $this->virtualHostConfiguration['name']);
 		$template->setVar('installationRoot', $this->configuration['hostroot.directory'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name']);
 		$fileContent = $template->render();
-		$file = tempnam('/tmp', 'bazinga');
+
+		$file = $this->configuration['hostroot.directory'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name'] . '/system/conf/virtualhost.conf';
+
 		file_put_contents($file, $fileContent);
 
-		$command = vsprintf(
-			'sudo mv %s %s',
-			array(
-				$file,
-				$this->configuration['sitesAvailable.directory'] . '/' . $this->virtualHostConfiguration['name'] . '.conf',
-			)
-		);
-
-		exec($command);
-
+		symlink($file, $this->configuration['sitesAvailable.directory'] . '/' . $this->virtualHostConfiguration['name'] . '.conf');
 	}
 
-	private function taskCreateSystemUserAndGroup(){
+	private function taskCreateFpmFile() {
+		$this->output->writeln('Creating FPM File');
+		$template = new \Langeland\Bazinga\Service\TemplateService(__DIR__ . '/../../../../Resources/fpm.template');
+		$template->setVar('installationName', $this->virtualHostConfiguration['name']);
+		$template->setVar('installationRoot', $this->configuration['hostroot.directory'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name']);
+		$template->setVar('user', $this->virtualHostConfiguration['user']);
+		$template->setVar('group', $this->virtualHostConfiguration['group']);
+		$fileContent = $template->render();
+
+		$file = $this->configuration['hostroot.directory'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name'] . '/system/conf/fpm.pool';
+
+		file_put_contents($file, $fileContent);
+
+		symlink($file, $this->configuration['fpmPool.directory'] . '/' . $this->virtualHostConfiguration['name'] . '.pool');
+	}
+
+	private function taskCreateSystemUserAndGroup() {
 		$this->output->writeln('Creating Syetem user and group (Not implemented)');
 
 	}
 
-	private function taskEnableSite(){
+	private function taskEnableSite() {
 		$this->output->writeln('Enabling apache site (Not implemented)');
 
 	}
 
-	private function taskRestartApache(){
+	private function taskRestartApache() {
 		$this->output->writeln('Creating Restarting apache (Not implemented)');
 
 	}
-
-
 
 }
 
