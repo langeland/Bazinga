@@ -14,7 +14,10 @@ class AbstractCommand extends \Symfony\Component\Console\Command\Command {
 	 */
 	protected $output;
 
-	public function __construct() {
+	protected $configuration;
+
+	public function __construct($configuration) {
+		$this->configuration = $configuration;
 		parent::__construct();
 	}
 

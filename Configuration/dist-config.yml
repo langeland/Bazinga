@@ -1,0 +1,8 @@
+directories:
+  sites_available: /home/hostroot/configuration/virtualhost.d
+  site_enabled: /etc/apache2/sites-enabled
+  fpm_pool: /home/hostroot/configuration/pool.d
+  hostroot: /home/hostroot/sites
+pseudo_groups:
+  - danquah
+  - langeland

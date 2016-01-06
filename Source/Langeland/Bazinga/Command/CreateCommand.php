@@ -3,19 +3,7 @@
 namespace Langeland\Bazinga\Command;
 
 class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
-
-	protected $configuration = array(
-		'sitesAvailable.directory' => '/home/hostroot/configuration/virtualhost.d',
-		'sitesEnabled.directory' => '/etc/apache2/sites-enabled',
-		'fpmPool.directory' => '/home/hostroot/configuration/pool.d',
-		'hostroot.directory' => '/home/hostroot/sites'
-	);
-
 	protected $virtualHostConfiguration = array();
-
-	public function __construct() {
-		parent::__construct();
-	}
 
 	protected function configure() {
 		$this
@@ -33,20 +21,6 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 		}
 
 		$helper = $this->getHelper('question');
-
-		/***************************************************************************************************************
-		 *
-		 **************************************************************************************************************/
-//		$question = new \Symfony\Component\Console\Question\Question('Input main domain name. (no http://): ');
-//		$question->setValidator(function ($answer) {
-//			if ($answer == '') {
-//				throw new \RuntimeException('Domain name cannot be empty');
-//			}
-//			return $answer;
-//		});
-//
-//		$this->virtualHostConfiguration['domain'] = trim($helper->ask($input, $output, $question));
-//		$this->virtualHostConfiguration['directory'] = implode('.', array_reverse(explode('.', $this->virtualHostConfiguration['domain'])));
 
 		/***************************************************************************************************************
 		 *
@@ -74,10 +48,9 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 		/***************************************************************************************************************
 		 *
 		 **************************************************************************************************************/
-		$pseudoGroups = array('langeland', 'danquah');
 		$question = new \Symfony\Component\Console\Question\ChoiceQuestion(
 			'Please select a pseudo group for the domain: ',
-			$pseudoGroups
+			$this->configuration['pseudo_groups']
 		);
 		$question->setErrorMessage('Pseudo group %s is invalid.');
 		$this->virtualHostConfiguration['pseudoGroup'] = $helper->ask($input, $output, $question);
@@ -131,10 +104,10 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 	private function taskCreateDirectories() {
 		$this->output->writeln('Creating Directories');
 
-		$pseudoGroupDirectory = $this->configuration['hostroot.directory'] . '/' . $this->virtualHostConfiguration['pseudoGroup'];
+		$pseudoGroupDirectory = $this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'];
 		$virtualHostDirectory = $pseudoGroupDirectory . '/' . $this->virtualHostConfiguration['name'];
 
-		if (!is_dir($this->configuration['hostroot.directory'] . '/' . $this->virtualHostConfiguration['pseudoGroup'])) {
+		if (!is_dir($this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'])) {
 			die('Missing pseudoGroup dir');
 		}
 
@@ -166,30 +139,30 @@ class CreateCommand extends \Langeland\Bazinga\Command\AbstractCommand {
 		$this->output->writeln('Creating VirtualHost File');
 		$template = new \Langeland\Bazinga\Service\TemplateService(__DIR__ . '/../../../../Resources/VirtualHost.template');
 		$template->setVar('installationName', $this->virtualHostConfiguration['name']);
-		$template->setVar('installationRoot', $this->configuration['hostroot.directory'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name']);
+		$template->setVar('installationRoot', $this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name']);
 		$fileContent = $template->render();
 
-		$file = $this->configuration['hostroot.directory'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name'] . '/system/conf/virtualhost.conf';
+		$file = $this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name'] . '/system/conf/virtualhost.conf';
 
 		file_put_contents($file, $fileContent);
 
-		symlink($file, $this->configuration['sitesAvailable.directory'] . '/' . $this->virtualHostConfiguration['name'] . '.conf');
+		symlink($file, $this->configuration['directories']['sites_available'] . '/' . $this->virtualHostConfiguration['name'] . '.conf');
 	}
 
 	private function taskCreateFpmFile() {
 		$this->output->writeln('Creating FPM File');
 		$template = new \Langeland\Bazinga\Service\TemplateService(__DIR__ . '/../../../../Resources/fpm.template');
 		$template->setVar('installationName', $this->virtualHostConfiguration['name']);
-		$template->setVar('installationRoot', $this->configuration['hostroot.directory'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name']);
+		$template->setVar('installationRoot', $this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name']);
 		$template->setVar('user', $this->virtualHostConfiguration['user']);
 		$template->setVar('group', $this->virtualHostConfiguration['group']);
 		$fileContent = $template->render();
 
-		$file = $this->configuration['hostroot.directory'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name'] . '/system/conf/fpm.pool';
+		$file = $this->configuration['directories']['hostroot'] . '/' . $this->virtualHostConfiguration['pseudoGroup'] . '/' . $this->virtualHostConfiguration['name'] . '/system/conf/fpm.pool';
 
 		file_put_contents($file, $fileContent);
 
-		symlink($file, $this->configuration['fpmPool.directory'] . '/' . $this->virtualHostConfiguration['name'] . '.pool');
+		symlink($file, $this->configuration['directories']['fpm_pool'] . '/' . $this->virtualHostConfiguration['name'] . '.pool');
 	}
 
 	private function taskCreateSystemUserAndGroup() {

@@ -16,7 +16,7 @@
 	],
 	"autoload": {
 		"psr-4": {
-			"Langeland\\": "Libraries/Langeland/"
+			"Langeland\\": "Source/Langeland/"
 		}
 	},
 	"bin": [
@@ -29,6 +29,7 @@
 	"require": {
 		"php": ">=5.4.0",
 		"symfony/console": "3.0.*@dev",
-		"symfony/process": "3.0.*@dev"
+		"symfony/process": "3.0.*@dev",
+		"symfony/yaml": "3.0.*@dev"
 	}
 }
